@@ -1,0 +1,16 @@
+/* You can add global styles to this file, and also import other style files */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Add smooth transitions for theme changes */
+:root {
+  transition: background-color 0.3s ease;
+}

@@ -1,0 +1,91 @@
+<div class="container">
+  <h1>{{ title }}</h1>
+
+  <div class="form-group" *ngIf="!isSubmitting">
+    <label for="businessContext">Describe your business opportunity:</label>
+    <textarea
+      id="businessContext"
+      [(ngModel)]="businessContext"
+      rows="4"
+      [disabled]="isSubmitting">
+    </textarea>
+  </div>
+
+  <button (click)="onSubmit()" *ngIf="!isSubmitting" [disabled]="!businessContext">
+    Analyze Opportunity
+  </button>
+
+  <app-d3-progress 
+    *ngIf="isSubmitting"
+    [steps]="analysisSteps"
+    [currentStep]="currentStep"
+    [completedSteps]="getCompletedSteps()">
+  </app-d3-progress>
+
+  <!-- Tabs -->
+  <div class="tabs-container" *ngIf="isSubmitting">
+    <div class="tabs">
+      <ng-container *ngFor="let step of analysisSteps">
+        <button
+          *ngIf="results[step]"
+          class="tab-button"
+          [class.active]="activeTab === step"
+          [class.complete]="results[step]"
+          (click)="activeTab = step">
+          {{ getTabLabel(step) }}
+        </button>
+      </ng-container>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <div *ngFor="let step of analysisSteps">
+        <div *ngIf="activeTab === step && results[step]" class="analysis-result">
+          <h2>{{ 
+            step === 'strategy' ? 'Strategic' : 
+            step === 'competitors' ? 'Competitor' :
+            step === 'roi' ? 'ROI' :
+            step | titlecase }} Analysis</h2>
+          
+          <div *ngIf="results[step]?.sections" class="analysis-content">
+            <div *ngFor="let section of results[step]?.sections" class="section">
+              <ng-container *ngIf="section?.content && section.content.length > 0">
+                <div class="section-header">
+                  <h3>{{ section?.title }}</h3>
+                </div>
+                <div class="section-content">
+                  <div class="bullet-points">
+                    <p *ngFor="let point of section?.content" 
+                       [innerHTML]="point">
+                    </p>
+                  </div>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompts -->
+  <div class="prompt-container" *ngIf="shouldShowJustificationPrompt()">
+    <div class="prompt">
+      <p>Would you like a detailed business justification document?</p>
+      <div class="prompt-buttons">
+        <button (click)="onJustificationResponse(true)">Yes</button>
+        <button (click)="onJustificationResponse(false)">No</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="prompt-container" *ngIf="shouldShowDeckPrompt()">
+    <div class="prompt">
+      <p>Would you like a presentation deck?</p>
+      <div class="prompt-buttons">
+        <button (click)="addDeck()">Yes</button>
+        <button (click)="skipDeck()">No</button>
+      </div>
+    </div>
+  </div>
+</div>
