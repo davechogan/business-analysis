@@ -1,10 +1,12 @@
+from openai import OpenAI
 from flask import jsonify
-import openai
+
+client = OpenAI()  # This will use OPENAI_API_KEY from environment
 
 def format_analysis(text):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=[
                 {
                     "role": "system",

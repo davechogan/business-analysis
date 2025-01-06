@@ -10,13 +10,15 @@ from Agents.agents.roi_analysis import ROIAnalysis
 from Agents.agents.business_justification import BusinessJustification
 from Agents.agents.investor_deck import InvestorDeck
 from Agents.agents.competitor_analysis import CompetitorAnalysis
+from format_handler import format_analysis  # Import the formatter
 
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
 CORS(app, resources={
     r"/submit_context": {"origins": ["http://127.0.0.1:8000", "http://localhost:8000"]},
-    r"/process/*": {"origins": ["http://127.0.0.1:8000", "http://localhost:8000"]}
+    r"/process/*": {"origins": ["http://127.0.0.1:8000", "http://localhost:8000"]},
+    r"/format/*": {"origins": ["http://127.0.0.1:8000", "http://localhost:8000"]}  # Add format endpoint
 })
 
 def initialize_openai_client():
@@ -198,6 +200,23 @@ def submit_context():
     data = request.get_json()
     context = data.get('custom_context')
     return jsonify({'status': 'success', 'context': context})
+
+@app.route('/format/<step>', methods=['POST', 'OPTIONS'])
+def format_step(step):
+    if request.method == 'OPTIONS':
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
+    data = request.get_json()
+    content = data.get('content')
+    
+    try:
+        formatted_result = format_analysis(content)
+        return formatted_result
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000) 

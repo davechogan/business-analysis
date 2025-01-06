@@ -14,6 +14,124 @@ document.addEventListener('DOMContentLoaded', function() {
         analyzeBtn.disabled = !this.value.trim();
     });
 
+    // Create tabs container
+    function createTabsContainer() {
+        const tabsContainer = document.createElement('div');
+        tabsContainer.className = 'tabs-container';
+        
+        const tabsList = document.createElement('div');
+        tabsList.className = 'tabs-list';
+        
+        const tabContent = document.createElement('div');
+        tabContent.className = 'tab-content';
+        
+        tabsContainer.appendChild(tabsList);
+        tabsContainer.appendChild(tabContent);
+        analysisContent.appendChild(tabsContainer);
+        
+        return { tabsList, tabContent };
+    }
+
+    // Add new tab
+    function addTab(step, content) {
+        const tabsContainer = document.querySelector('.tabs-container') || createTabsContainer().tabsList;
+        const tabsList = document.querySelector('.tabs-list');
+        const tabContent = document.querySelector('.tab-content');
+
+        // Create tab button
+        const tab = document.createElement('button');
+        tab.className = 'tab';
+        tab.textContent = step.charAt(0).toUpperCase() + step.slice(1);
+        tabsList.appendChild(tab);
+
+        // Parse the JSON content if it's a string
+        let formattedContent;
+        try {
+            formattedContent = typeof content === 'string' ? JSON.parse(content) : content;
+            console.log('Parsed content:', formattedContent);  // Debug log
+        } catch (e) {
+            console.error('Error parsing content:', e);
+            formattedContent = { sections: [{ title: 'Raw Output', content: content }] };
+        }
+
+        // Create tab content with sections
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'tab-pane';
+        
+        // Build HTML based on the formatted content structure
+        let htmlContent = `
+            <div class="analysis-card">
+                <h2>${step.charAt(0).toUpperCase() + step.slice(1)} Analysis</h2>
+                <div class="markdown-content">
+        `;
+
+        // Add sections if they exist
+        if (formattedContent && formattedContent.sections) {
+            formattedContent.sections.forEach(section => {
+                htmlContent += `
+                    <div class="analysis-section">
+                        <h3>${section.title}</h3>
+                        ${section.content}
+                    </div>
+                `;
+            });
+        } else {
+            // Fallback for unformatted content
+            htmlContent += `
+                <div class="analysis-section">
+                    <h3>Analysis</h3>
+                    ${typeof content === 'string' ? content : JSON.stringify(content, null, 2)}
+                </div>
+            `;
+        }
+
+        // Add key points if they exist
+        if (formattedContent.keyPoints && formattedContent.keyPoints.length > 0) {
+            htmlContent += `
+                <div class="analysis-section">
+                    <h3>Key Points</h3>
+                    <ul>
+                        ${formattedContent.keyPoints.map(point => `<li>${point}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Add recommendations if they exist
+        if (formattedContent.recommendations && formattedContent.recommendations.length > 0) {
+            htmlContent += `
+                <div class="analysis-section">
+                    <h3>Recommendations</h3>
+                    <ul>
+                        ${formattedContent.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        htmlContent += `
+                </div>
+            </div>
+        `;
+
+        contentDiv.innerHTML = htmlContent;
+        tabContent.appendChild(contentDiv);
+
+        // Hide all other content and show this one
+        document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        contentDiv.style.display = 'block';
+        tab.classList.add('active');
+
+        // Add click handler
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            contentDiv.style.display = 'block';
+            tab.classList.add('active');
+        });
+    }
+
     // Create D3 progress visualization
     function createProgressBar() {
         const width = progressBar.offsetWidth;
@@ -75,16 +193,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function processStep(step) {
         try {
-            const response = await fetch(`http://localhost:5000/process/${step}`, {
+            // Start the main process request
+            const processPromise = fetch(`http://localhost:5000/process/${step}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({}),
+            }).then(r => r.json());
+
+            // Get the raw data
+            const data = await processPromise;
+            console.log(`Raw ${step} data:`, data);
+
+            // Start formatting while we begin the next step
+            const formatPromise = fetch(`http://localhost:5000/format/${step}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ content: data.result }),
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`Formatting failed: ${response.statusText}`);
+                }
+                return response.json();
             });
-            
-            const data = await response.json();
-            return data.result;
+
+            // Wait for formatting to complete
+            const formattedData = await formatPromise;
+            console.log(`Formatted ${step} data:`, formattedData);
+            return formattedData;
         } catch (error) {
             console.error(`Error processing step ${step}:`, error);
             throw error;
@@ -96,9 +235,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!context) return;
 
         try {
-            // Show results section and initialize progress bar
             resultsSection.style.display = 'block';
             createProgressBar();
+            analysisContent.innerHTML = '';
 
             // Submit context
             const contextResponse = await fetch('http://localhost:5000/submit_context', {
@@ -113,22 +252,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error('Failed to submit context');
             }
 
-            // Process each step
+            // Process steps with overlapping requests
+            let formatPromise = null;
             for (const step of steps) {
                 currentStep = steps.indexOf(step);
-                createProgressBar();  // Update progress visualization
-                
-                const result = await processStep(step);
-                completedSteps.push(step);
-                
-                // Update progress bar and display results
                 createProgressBar();
-                analysisContent.innerHTML += `
-                    <div class="step-result">
-                        <h2>${step.charAt(0).toUpperCase() + step.slice(1)} Analysis</h2>
-                        <div class="content">${result}</div>
-                    </div>
-                `;
+                
+                // Wait for previous formatting to complete if it exists
+                if (formatPromise) {
+                    const formattedResult = await formatPromise;
+                    addTab(steps[currentStep - 1], formattedResult);
+                    completedSteps.push(steps[currentStep - 1]);
+                    createProgressBar();
+                }
+
+                // Start processing next step
+                const result = await processStep(step);
+                formatPromise = Promise.resolve(result);
+            }
+
+            // Handle the last step
+            if (formatPromise) {
+                const formattedResult = await formatPromise;
+                addTab(steps[steps.length - 1], formattedResult);
+                completedSteps.push(steps[steps.length - 1]);
+                createProgressBar();
             }
 
         } catch (error) {
