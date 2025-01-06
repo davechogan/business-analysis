@@ -15,8 +15,8 @@ from Agents.agents.competitor_analysis import CompetitorAnalysis
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
 CORS(app, resources={
-    r"/submit_context": {"origins": ["http://127.0.0.1:4200", "http://localhost:4200"]},
-    r"/process/*": {"origins": ["http://127.0.0.1:4200", "http://localhost:4200"]}
+    r"/submit_context": {"origins": ["http://127.0.0.1:8000", "http://localhost:8000"]},
+    r"/process/*": {"origins": ["http://127.0.0.1:8000", "http://localhost:8000"]}
 })
 
 def initialize_openai_client():
@@ -190,7 +190,6 @@ def process_deck():
 @app.route('/submit_context', methods=['POST', 'OPTIONS'])
 def submit_context():
     if request.method == 'OPTIONS':
-        # Handle preflight request
         response = jsonify({'status': 'ok'})
         response.headers.add('Access-Control-Allow-Methods', 'POST')
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
@@ -198,7 +197,6 @@ def submit_context():
 
     data = request.get_json()
     context = data.get('custom_context')
-    # Your existing logic here
     return jsonify({'status': 'success', 'context': context})
 
 if __name__ == '__main__':
