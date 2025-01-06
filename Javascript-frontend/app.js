@@ -135,23 +135,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Create D3 progress visualization
     function createProgressBar() {
-        const width = progressBar.offsetWidth;
+        // Calculate dimensions based on container
+        const container = progressBar.getBoundingClientRect();
+        const width = container.width;
         const height = 100;
-        const padding = 20;
+        const padding = Math.max(40, width * 0.05); // Responsive padding, minimum 40px
+        const labelPadding = 10; // Extra padding for labels
 
         // Clear any existing content
         progressBar.innerHTML = '';
 
-        // Get total steps (including accepted optional steps)
-        const totalSteps = [...steps, ...completedSteps.filter(step => optionalSteps.includes(step))];
+        // Get total steps without duplicates
+        const uniqueSteps = [...new Set([...steps, ...completedSteps.filter(step => optionalSteps.includes(step))])];
         
-        // Create SVG
+        // Use uniqueSteps instead of totalSteps for the rest of the function
+        const stepWidth = (width - (2 * padding)) / (uniqueSteps.length - 1 || 1);
+
+        // Create SVG with viewBox for responsiveness
         const svg = d3.select(progressBar)
             .append('svg')
-            .attr('width', width)
-            .attr('height', height);
-
-        const stepWidth = (width - (2 * padding)) / (totalSteps.length - 1 || 1);
+            .attr('width', '100%')
+            .attr('height', height)
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
 
         // Create progress line
         svg.append('line')
@@ -163,26 +169,60 @@ document.addEventListener('DOMContentLoaded', function() {
             .style('stroke-width', 2);
 
         // Create step circles and labels
-        totalSteps.forEach((step, index) => {
+        uniqueSteps.forEach((step, index) => {
             const x = padding + (stepWidth * index);
+            const g = svg.append('g')
+                .attr('class', 'step-group')
+                .attr('transform', `translate(${x}, ${height/2})`);
             
-            // Circle
-            svg.append('circle')
-                .attr('cx', x)
-                .attr('cy', height / 2)
+            // Main circle
+            g.append('circle')
                 .attr('r', 10)
                 .style('fill', getStepColor(step))
                 .style('stroke', '#666')
                 .style('stroke-width', 2);
 
-            // Label
+            // Add loading indicator for current step
+            if (currentStep === index && !completedSteps.includes(step)) {
+                const loadingCircle = g.append('circle')
+                    .attr('class', 'loading-indicator')
+                    .attr('r', 15)
+                    .style('fill', 'none')
+                    .style('stroke', '#2196F3')
+                    .style('stroke-width', 2)
+                    .style('stroke-dasharray', '10 5');
+            }
+
+            // Label with background for better readability
+            const label = step.charAt(0).toUpperCase() + step.slice(1);
+            
+            // Add label with better positioning
             svg.append('text')
                 .attr('x', x)
                 .attr('y', height / 2 + 25)
                 .attr('text-anchor', 'middle')
-                .text(step.charAt(0).toUpperCase() + step.slice(1))
-                .style('font-size', '12px');
+                .attr('class', 'step-label')
+                .text(label)
+                .style('font-size', '12px')
+                .style('font-weight', currentStep === index ? 'bold' : 'normal')
+                .style('fill', currentStep === index ? '#2196F3' : '#666');
         });
+
+        // Add resize handler
+        window.addEventListener('resize', debounce(() => createProgressBar(), 250));
+    }
+
+    // Debounce function to prevent too many resize events
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 
     function getStepColor(step) {
@@ -283,6 +323,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!context) return;
 
         try {
+            // Disable button and show loading state
+            analyzeBtn.disabled = true;
+            analyzeBtn.classList.add('processing');
+            analyzeBtn.textContent = 'Processing...';
+
             resultsSection.style.display = 'block';
             createProgressBar();
             analysisContent.innerHTML = '';
@@ -329,24 +374,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // After completing main steps, offer optional steps
             for (const optionalStep of optionalSteps) {
-                const shouldProceed = await createOptionalStepPrompt(optionalStep);
-                
-                if (shouldProceed) {
-                    // Add the step to the progress bar immediately after accepting
-                    steps.push(optionalStep);  // Add to total steps
-                    currentStep = steps.length - 1;
-                    createProgressBar();  // Update progress bar with new step
+                if (!completedSteps.includes(optionalStep)) {  // Only offer if not already completed
+                    const shouldProceed = await createOptionalStepPrompt(optionalStep);
                     
-                    const result = await processStep(optionalStep);
-                    completedSteps.push(optionalStep);
-                    addTab(optionalStep, result);
-                    createProgressBar();  // Update progress bar to show completion
+                    if (shouldProceed) {
+                        currentStep = steps.length + optionalSteps.indexOf(optionalStep);
+                        if (!steps.includes(optionalStep)) {  // Only add if not already in steps
+                            steps.push(optionalStep);
+                        }
+                        createProgressBar();
+                        
+                        const result = await processStep(optionalStep);
+                        if (!completedSteps.includes(optionalStep)) {  // Only add if not already completed
+                            completedSteps.push(optionalStep);
+                        }
+                        addTab(optionalStep, result);
+                        createProgressBar();
+                    }
                 }
             }
 
         } catch (error) {
             console.error('Analysis error:', error);
             analysisContent.innerHTML = `<div class="error">Error during analysis: ${error.message}</div>`;
+        } finally {
+            // Reset button state
+            analyzeBtn.disabled = false;
+            analyzeBtn.classList.remove('processing');
+            analyzeBtn.textContent = 'Analyze';
         }
     });
 });
