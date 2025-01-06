@@ -17,20 +17,43 @@ app.secret_key = 'your-secret-key-here'
 CORS(app)
 
 def initialize_openai_client():
+    # Get absolute path to .env file
+    base_dir = os.path.dirname(os.path.abspath(__file__))  # Gets the directory containing app.py
+    env_path = os.path.join(base_dir, '.env')
+    
+    print(f"Looking for .env at: {env_path}")
+    
     # Clear ALL OpenAI-related environment variables at startup
     print("\nClearing all OpenAI environment variables:")
     openai_vars = [key for key in os.environ if 'OPENAI' in key]
     for key in openai_vars:
         del os.environ[key]
 
-    # Load fresh from .env file
-    load_dotenv(override=True)
+    # Load fresh from .env file with explicit path
+    print("\nLoading .env file...")
+    if not os.path.exists(env_path):
+        raise FileNotFoundError(f".env file not found at {env_path}")
+        
+    load_dotenv(dotenv_path=env_path, override=True)
+    
+    # Debug: Print environment variables after loading
+    print("\nEnvironment variables after loading .env:")
+    print(f"API Key exists: {bool(os.getenv('OPENAI_API_KEY'))}")
+    print(f"Organization ID exists: {bool(os.getenv('OPENAI_ORGANIZATION_ID'))}")
+    print(f"Project Key exists: {bool(os.getenv('OPENAI_PROJECT_KEY'))}")
 
     # Initialize OpenAI client
+    api_key = os.getenv('OPENAI_API_KEY')
+    org_id = os.getenv('OPENAI_ORGANIZATION_ID')
+    project_key = os.getenv('OPENAI_PROJECT_KEY')
+
+    if not api_key:
+        raise ValueError("No API key found in environment variables!")
+
     client = OpenAI(
-        api_key=os.getenv('OPENAI_API_KEY'),
-        organization=os.getenv('OPENAI_ORGANIZATION_ID'),
-        project=os.getenv('OPENAI_PROJECT_KEY')
+        api_key=api_key,
+        organization=org_id,
+        project=project_key
     )
 
     return client
