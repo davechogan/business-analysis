@@ -6,42 +6,38 @@ import { BaseType } from 'd3-selection';
 @Component({
   selector: 'app-d3-progress',
   template: `
-    <div class="d3-progress"></div>
-    <style>
-      @keyframes pulse {
-        0% { 
-          stroke-width: 3;
-          r: 15;
-        }
-        50% { 
-          stroke-width: 6;
-          r: 20;
-        }
-        100% { 
-          stroke-width: 3;
-          r: 15;
-        }
-      }
-      
-      :host ::ng-deep circle.active {
-        animation: pulse 1s ease-in-out infinite !important;
-      }
-    </style>
+    <div class="d3-progress" [style.display]="steps.length ? 'block' : 'none'"></div>
   `,
   styles: [`
     .d3-progress {
       width: 100%;
-      height: 100px;
+      height: 120px;
       margin: 2rem 0;
     }
 
-    :host ::ng-deep circle.active {
-      fill: var(--surface-card) !important;
-      stroke: var(--primary-color) !important;
+    :host ::ng-deep circle {
+      fill: var(--surface-card);
+      stroke: var(--primary-color);
+      stroke-width: 3;
     }
-  `],
-  standalone: true,
-  imports: [CommonModule]
+
+    :host ::ng-deep circle.completed {
+      fill: var(--primary-color);
+    }
+
+    :host ::ng-deep text {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    :host ::ng-deep .step-number {
+      fill: var(--text-color);
+    }
+
+    :host ::ng-deep .completed .step-number {
+      fill: white;
+    }
+  `]
 })
 export class D3ProgressComponent implements OnInit, OnChanges, OnDestroy {
   @Input() steps: string[] = [];
