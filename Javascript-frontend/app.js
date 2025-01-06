@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const analysisContent = document.getElementById('analysis-content');
 
     const steps = ['strategy', 'competitors', 'revenue', 'cost', 'roi'];
+    const optionalSteps = ['justification', 'deck'];
     let currentStep = 0;
     let completedSteps = [];
 
@@ -141,13 +142,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear any existing content
         progressBar.innerHTML = '';
 
+        // Get total steps (including accepted optional steps)
+        const totalSteps = [...steps, ...completedSteps.filter(step => optionalSteps.includes(step))];
+        
         // Create SVG
         const svg = d3.select(progressBar)
             .append('svg')
             .attr('width', width)
             .attr('height', height);
 
-        const stepWidth = (width - (2 * padding)) / (steps.length - 1);
+        const stepWidth = (width - (2 * padding)) / (totalSteps.length - 1 || 1);
 
         // Create progress line
         svg.append('line')
@@ -159,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .style('stroke-width', 2);
 
         // Create step circles and labels
-        steps.forEach((step, index) => {
+        totalSteps.forEach((step, index) => {
             const x = padding + (stepWidth * index);
             
             // Circle
@@ -167,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .attr('cx', x)
                 .attr('cy', height / 2)
                 .attr('r', 10)
-                .style('fill', getStepColor(index))
+                .style('fill', getStepColor(step))
                 .style('stroke', '#666')
                 .style('stroke-width', 2);
 
@@ -181,11 +185,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function getStepColor(index) {
-        if (completedSteps.includes(steps[index])) {
+    function getStepColor(step) {
+        if (completedSteps.includes(step)) {
             return '#4CAF50';  // Green for completed
         }
-        if (index === currentStep) {
+        if (steps.indexOf(step) === currentStep || 
+            (optionalSteps.includes(step) && 
+             completedSteps.length === steps.length + optionalSteps.indexOf(step))) {
             return '#2196F3';  // Blue for current
         }
         return '#fff';  // White for pending
@@ -228,6 +234,48 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error(`Error processing step ${step}:`, error);
             throw error;
         }
+    }
+
+    function createOptionalStepPrompt(step) {
+        return new Promise((resolve) => {
+            const promptDiv = document.createElement('div');
+            promptDiv.className = 'optional-step-prompt';
+            promptDiv.innerHTML = `
+                <div class="prompt-card">
+                    <h3>${step === 'justification' ? 'Create Business Justification Plan?' : 'Generate Investor Deck?'}</h3>
+                    <p>${step === 'justification' ? 
+                        'Would you like to generate a detailed business justification plan based on the analysis?' : 
+                        'Would you like to generate an investor pitch deck based on the analysis?'}</p>
+                    <div class="prompt-buttons">
+                        <button class="accept-btn">Yes, generate it</button>
+                        <button class="reject-btn">No, skip this</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(promptDiv);  // Append to body instead of analysisContent
+
+            const acceptBtn = promptDiv.querySelector('.accept-btn');
+            const rejectBtn = promptDiv.querySelector('.reject-btn');
+
+            const cleanup = () => {
+                promptDiv.style.opacity = '0';
+                setTimeout(() => promptDiv.remove(), 300);
+            };
+
+            acceptBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(true);
+            });
+
+            rejectBtn.addEventListener('click', () => {
+                cleanup();
+                resolve(false);
+            });
+
+            // Fade in effect
+            setTimeout(() => promptDiv.style.opacity = '1', 0);
+        });
     }
 
     analyzeBtn.addEventListener('click', async function() {
@@ -277,6 +325,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 addTab(steps[steps.length - 1], formattedResult);
                 completedSteps.push(steps[steps.length - 1]);
                 createProgressBar();
+            }
+
+            // After completing main steps, offer optional steps
+            for (const optionalStep of optionalSteps) {
+                const shouldProceed = await createOptionalStepPrompt(optionalStep);
+                
+                if (shouldProceed) {
+                    // Add the step to the progress bar immediately after accepting
+                    steps.push(optionalStep);  // Add to total steps
+                    currentStep = steps.length - 1;
+                    createProgressBar();  // Update progress bar with new step
+                    
+                    const result = await processStep(optionalStep);
+                    completedSteps.push(optionalStep);
+                    addTab(optionalStep, result);
+                    createProgressBar();  // Update progress bar to show completion
+                }
             }
 
         } catch (error) {

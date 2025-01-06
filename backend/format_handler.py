@@ -1,12 +1,24 @@
 from openai import OpenAI
 from flask import jsonify
 
-client = OpenAI()  # This will use OPENAI_API_KEY from environment
+client = None
+
+def get_client():
+    global client
+    if client is None:
+        client = OpenAI()  # This will use OPENAI_API_KEY from environment
+    return client
 
 def format_analysis(text):
     try:
+        # If we're using mock data, we don't need the OpenAI client
+        if hasattr(format_analysis, 'USE_MOCK') and format_analysis.USE_MOCK:
+            return text
+
+        # Only get the client when we need it
+        client = get_client()
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=[
                 {
                     "role": "system",
