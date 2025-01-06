@@ -1,12 +1,15 @@
-from typing import Dict, Optional
-from .base_agent import BaseAgent
 from openai import OpenAI
 
-class CompetitorAnalysis(BaseAgent):
+class CompetitorAnalysis:
     def __init__(self, client: OpenAI):
-        super().__init__(client, 'competitors')
+        self.client = client
 
-    def analyze(self, business_context: str, previous_results: Optional[Dict[str, str]] = None) -> str:
+    def analyze(self, business_context: str, strategy: str = None) -> str:
+        strategy_context = f"""
+        Based on the previous strategic analysis:
+        {strategy}
+        """ if strategy else ""
+
         prompt = f"""
         Analyze the competitive landscape for this business opportunity. Format your response with ### section headers followed by bullet points (•).
 
@@ -39,6 +42,16 @@ class CompetitorAnalysis(BaseAgent):
 
         Business Context:
         {business_context}
+        {strategy_context}
         """
 
-        return self._generate_response(prompt, previous_results) 
+        response = self.client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[
+                {"role": "system", "content": "You are a competitive intelligence expert. Always format your response with ### section headers followed by bullet points."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+
+        return response.choices[0].message.content 
