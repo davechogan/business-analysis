@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from openai import OpenAI
@@ -10,13 +11,34 @@ from Agents.agents.business_justification import BusinessJustification
 from Agents.agents.investor_deck import InvestorDeck
 from Agents.agents.competitor_analysis import CompetitorAnalysis
 
-load_dotenv()
+# Create Flask app
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Add a secret key for session
+app.secret_key = 'your-secret-key-here'
 CORS(app)
 
-# Initialize OpenAI client and all agents
-client = OpenAI()
+def initialize_openai_client():
+    # Clear ALL OpenAI-related environment variables at startup
+    print("\nClearing all OpenAI environment variables:")
+    openai_vars = [key for key in os.environ if 'OPENAI' in key]
+    for key in openai_vars:
+        del os.environ[key]
+
+    # Load fresh from .env file
+    load_dotenv(override=True)
+
+    # Initialize OpenAI client
+    client = OpenAI(
+        api_key=os.getenv('OPENAI_API_KEY'),
+        organization=os.getenv('OPENAI_ORGANIZATION_ID'),
+        project=os.getenv('OPENAI_PROJECT_KEY')
+    )
+
+    return client
+
+# Initialize OpenAI client
+client = initialize_openai_client()
+
+# Initialize all agents
 strategy_agent = StrategyAnalysis(client)
 revenue_agent = RevenueAnalysis(client)
 cost_agent = CostAnalysis(client)
