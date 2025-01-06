@@ -2,8 +2,8 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AnalysisResultsComponent } from './components/analysis-results/analysis-results.component';
-import { D3ProgressComponent } from './components/d3-progress/d3-progress.component';
 import { AnalysisStep, Results } from './types/analysis.types';
+import { AnalysisService } from './services/analysis.service';
 
 @Component({
   selector: 'app-root',
@@ -13,8 +13,7 @@ import { AnalysisStep, Results } from './types/analysis.types';
   imports: [
     CommonModule,
     FormsModule,
-    AnalysisResultsComponent,
-    D3ProgressComponent
+    AnalysisResultsComponent
   ]
 })
 export class AppComponent {
@@ -22,7 +21,7 @@ export class AppComponent {
   showResults = false;
   isSubmitting = false;
   businessContext = '';
-  currentStep = 0;
+  currentStep: number = 0;
   analysisSteps: AnalysisStep[] = ['strategy', 'competitors', 'revenue', 'cost', 'roi'];
   activeTab: AnalysisStep = 'strategy';
   results: Results = {
@@ -34,11 +33,32 @@ export class AppComponent {
     justification: null,
     deck: null
   };
+  completedSteps: AnalysisStep[] = [];
 
-  onSubmit() {
+  constructor(private analysisService: AnalysisService) {}
+
+  async onSubmit() {
     if (this.businessContext.trim()) {
+      console.log('Submitting analysis...');
       this.showResults = true;
       this.isSubmitting = true;
+      
+      try {
+        await this.analysisService.submitContext(this.businessContext).toPromise();
+        console.log('Context submitted successfully');
+        
+        for (const step of this.analysisSteps) {
+          this.currentStep = this.analysisSteps.indexOf(step);
+          console.log(`Processing step: ${step}`);
+          
+          const result = await this.analysisService.processStep(step, {}).toPromise();
+          this.results[step] = result;
+          this.completedSteps.push(step);
+          console.log(`Step ${step} completed:`, result);
+        }
+      } catch (error) {
+        console.error('Error during analysis:', error);
+      }
     }
   }
 
@@ -69,6 +89,6 @@ export class AppComponent {
   }
 
   skipDeck() {
-    // Handle skipping deck
+    console.log('Skipping deck generation');
   }
 } 

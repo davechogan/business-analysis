@@ -64,7 +64,7 @@ class BusinessJustification:
         """
 
         response = self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a senior business advisor specializing in business case development and strategic planning. Format your response with ### section headers."},
                 {"role": "user", "content": prompt}

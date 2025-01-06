@@ -1,4 +1,9 @@
 import { Component, OnInit, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { D3ProgressComponent } from '../d3-progress/d3-progress.component';
+import { LoadingIndicatorComponent } from '../loading-indicator/loading-indicator.component';
+import { TabsComponent } from '../tabs/tabs.component';
+import { AnalysisStep } from '../../types/analysis.types';
 import { AnalysisService } from '../../services/analysis.service';
 
 @Component({
@@ -23,7 +28,7 @@ import { AnalysisService } from '../../services/analysis.service';
           <div *ngIf="showJustificationPrompt" class="prompt">
             <h3>Would you like to generate a business justification?</h3>
             <button (click)="processStep('justification')">Yes</button>
-            <button (click)="showDeckPrompt()">No</button>
+            <button (click)="setShowDeckPrompt()">No</button>
           </div>
 
           <!-- Deck Prompt -->
@@ -41,7 +46,14 @@ import { AnalysisService } from '../../services/analysis.service';
         (tabChange)="onTabChange($event)">
       </app-tabs>
     </div>
-  `
+  `,
+  standalone: true,
+  imports: [
+    CommonModule,
+    D3ProgressComponent,
+    LoadingIndicatorComponent,
+    TabsComponent
+  ]
 })
 export class AnalysisResultsComponent implements OnInit {
   @Input() showResults = false;
@@ -58,10 +70,27 @@ export class AnalysisResultsComponent implements OnInit {
   constructor(private analysisService: AnalysisService) {}
 
   ngOnInit() {
-    // Make sure these are false at initialization
     this.showResults = false;
     this.isSubmitting = false;
   }
 
-  // ... rest of your component code
+  getCurrentStepIndex(): number {
+    return this.steps.indexOf(this.currentStep);
+  }
+
+  processStep(step: AnalysisStep) {
+    // Implementation
+  }
+
+  setShowDeckPrompt() {
+    this.showDeckPrompt = true;
+  }
+
+  finishAnalysis() {
+    // Implementation
+  }
+
+  onTabChange(tab: string) {
+    this.currentTab = tab;
+  }
 } 

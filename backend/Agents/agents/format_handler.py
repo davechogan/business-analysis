@@ -8,7 +8,7 @@ def format_analysis(text, client: OpenAI = None):
             client = OpenAI()
             
         response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",  # Updated to match other agents
+            model="gpt-3.5-turbo",  # Updated to match other agents
             messages=[
                 {
                     "role": "system",

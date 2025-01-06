@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Opportunity Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Business Opportunity Analysis</h1>
+        
+        <div id="input-section">
+            <textarea id="business-context" placeholder="Enter your business context here..." rows="4"></textarea>
+            <button id="analyze-btn" disabled>Analyze</button>
+        </div>
+
+        <div id="results-section" style="display: none;">
+            <div id="progress-bar"></div>
+            <div id="analysis-content"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

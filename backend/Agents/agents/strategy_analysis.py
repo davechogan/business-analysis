@@ -37,7 +37,7 @@ class StrategyAnalysis:
         """
 
         response = self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a strategic business analyst with expertise in market analysis and business strategy. Format your response with ### section headers."},
                 {"role": "user", "content": prompt}

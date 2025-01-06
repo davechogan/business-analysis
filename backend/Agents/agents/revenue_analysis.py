@@ -55,7 +55,7 @@ class RevenueAnalysis:
         """
 
         response = self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a financial analyst specializing in revenue modeling and business forecasting. Format your response with ### section headers."},
                 {"role": "user", "content": prompt}

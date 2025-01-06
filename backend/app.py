@@ -14,7 +14,10 @@ from Agents.agents.competitor_analysis import CompetitorAnalysis
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
-CORS(app)
+CORS(app, resources={
+    r"/submit_context": {"origins": ["http://127.0.0.1:4200", "http://localhost:4200"]},
+    r"/process/*": {"origins": ["http://127.0.0.1:4200", "http://localhost:4200"]}
+})
 
 def initialize_openai_client():
     # Get absolute path to .env file
@@ -183,6 +186,20 @@ def process_deck():
     except Exception as e:
         print(f"Investor Deck Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/submit_context', methods=['POST', 'OPTIONS'])
+def submit_context():
+    if request.method == 'OPTIONS':
+        # Handle preflight request
+        response = jsonify({'status': 'ok'})
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        return response
+
+    data = request.get_json()
+    context = data.get('custom_context')
+    # Your existing logic here
+    return jsonify({'status': 'success', 'context': context})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000) 

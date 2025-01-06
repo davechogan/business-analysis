@@ -46,7 +46,7 @@ class CompetitorAnalysis:
         """
 
         response = self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a competitive intelligence expert. Always format your response with ### section headers followed by bullet points."},
                 {"role": "user", "content": prompt}

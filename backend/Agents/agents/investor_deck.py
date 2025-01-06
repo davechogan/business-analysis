@@ -64,7 +64,7 @@ class InvestorDeck:
         """
 
         response = self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are an expert in creating investor presentations and pitch decks. Format your response with ### section headers."},
                 {"role": "user", "content": prompt}
