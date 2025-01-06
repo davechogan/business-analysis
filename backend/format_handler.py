@@ -18,7 +18,7 @@ def format_analysis(text):
         # Only get the client when we need it
         client = get_client()
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[
                 {
                     "role": "system",

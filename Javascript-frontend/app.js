@@ -191,6 +191,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     .style('stroke', '#2196F3')
                     .style('stroke-width', 2)
                     .style('stroke-dasharray', '10 5');
+
+                // Add rotation animation
+                loadingCircle.append('animateTransform')
+                    .attr('attributeName', 'transform')
+                    .attr('type', 'rotate')
+                    .attr('from', '0 0 0')
+                    .attr('to', '360 0 0')
+                    .attr('dur', '1.5s')
+                    .attr('repeatCount', 'indefinite');
             }
 
             // Label with background for better readability
@@ -398,10 +407,274 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Analysis error:', error);
             analysisContent.innerHTML = `<div class="error">Error during analysis: ${error.message}</div>`;
         } finally {
-            // Reset button state
-            analyzeBtn.disabled = false;
-            analyzeBtn.classList.remove('processing');
-            analyzeBtn.textContent = 'Analyze';
+            // Only re-enable button if there was an error
+            if (analysisContent.querySelector('.error')) {
+                analyzeBtn.disabled = false;
+                analyzeBtn.classList.remove('processing');
+                analyzeBtn.textContent = 'Analyze';
+            } else {
+                // Keep button disabled after successful analysis
+                analyzeBtn.textContent = 'Analysis Complete';
+            }
         }
+    });
+
+    function setTheme(themeName) {
+        document.documentElement.setAttribute('data-theme', themeName);
+    }
+
+    function markVisualizableCards() {
+        const cards = document.querySelectorAll('.analysis-card');
+        cards.forEach(card => {
+            if (hasVisualizableData(card)) {
+                card.classList.add('has-visualization');
+                card.innerHTML += '<span class="visualization-indicator">📊</span>';
+                card.addEventListener('click', () => showVisualization(card));
+            }
+        });
+    }
+
+    // Mock analysis data
+    const mockAnalysisData = {
+        deck: [
+            {
+                id: 'slide-1',
+                title: 'Business Overview',
+                content: 'Revolutionary AI-powered business analysis platform',
+                visualizationType: 'summary',
+                keyPoints: [
+                    'Market size: $50B by 2025',
+                    'Current traction: 1000+ beta users',
+                    'Growth rate: 25% month-over-month'
+                ]
+            },
+            {
+                id: 'slide-2',
+                title: 'Market Opportunity',
+                content: 'Targeting the rapidly growing AI analytics market',
+                visualizationType: 'chart',
+                data: {
+                    labels: ['2021', '2022', '2023', '2024', '2025'],
+                    values: [10, 20, 35, 42, 50],
+                    type: 'bar'
+                }
+            },
+            {
+                id: 'slide-3',
+                title: 'Financial Projections',
+                content: 'Strong growth trajectory with positive unit economics',
+                visualizationType: 'graph',
+                data: {
+                    revenue: [1, 2, 5, 10, 20],
+                    costs: [2, 3, 4, 6, 8],
+                    profit: [-1, -1, 1, 4, 12]
+                }
+            }
+        ]
+    };
+
+    // Function to create deck slides
+    function createDeckSlides() {
+        console.log('Creating deck slides'); // Debug log
+        const deckContent = document.querySelector('.tab-content') || document.getElementById('deck-content');
+        if (!deckContent) {
+            console.error('Deck content container not found');
+            return;
+        }
+        
+        // Clear existing content
+        deckContent.innerHTML = '<h2>Investor Deck</h2>';
+        
+        // Add mock slides
+        mockAnalysisData.deck.forEach(slide => {
+            console.log('Creating slide:', slide.title); // Debug log
+            const slideCard = document.createElement('div');
+            slideCard.className = 'analysis-card deck-card';
+            slideCard.id = slide.id;
+            slideCard.draggable = true;
+            
+            slideCard.innerHTML = `
+                <h3 class="card-title">${slide.title}</h3>
+                <div class="card-content">
+                    <p>${slide.content}</p>
+                    <div class="visualization-data" data-type="${slide.visualizationType}">
+                        ${getVisualizationPreview(slide)}
+                    </div>
+                </div>
+            `;
+            
+            deckContent.appendChild(slideCard);
+        });
+        
+        initializeDragAndDrop();
+    }
+
+    // Function to show visualization preview
+    function getVisualizationPreview(slide) {
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'visualization-preview';
+        
+        switch(slide.visualizationType) {
+            case 'chart':
+                previewDiv.innerHTML = `
+                    <div class="chart-preview">
+                        <span class="visualization-icon">📊</span>
+                        <span>Click to view market size chart</span>
+                    </div>
+                `;
+                break;
+            case 'graph':
+                previewDiv.innerHTML = `
+                    <div class="chart-preview">
+                        <span class="visualization-icon">📈</span>
+                        <span>Click to view financial projections</span>
+                    </div>
+                `;
+                break;
+            default:
+                previewDiv.innerHTML = `
+                    <div class="summary-preview">
+                        <ul>
+                            ${slide.keyPoints.map(point => `<li>${point}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+        }
+        
+        return previewDiv.outerHTML;
+    }
+
+    // Initialize drag and drop
+    function initializeDragAndDrop() {
+        const cards = document.querySelectorAll('.deck-card');
+        
+        cards.forEach(card => {
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragover', handleDragOver);
+            card.addEventListener('drop', handleDrop);
+        });
+    }
+
+    // Drag and drop handlers
+    function handleDragStart(e) {
+        e.dataTransfer.setData('text/plain', e.target.id);
+        e.target.classList.add('dragging');
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const draggedElement = document.getElementById(draggedId);
+        const dropTarget = e.target.closest('.deck-card');
+        
+        if (draggedElement && dropTarget) {
+            const container = dropTarget.parentNode;
+            const draggedRect = draggedElement.getBoundingClientRect();
+            const dropTargetRect = dropTarget.getBoundingClientRect();
+            
+            if (draggedRect.top < dropTargetRect.top) {
+                container.insertBefore(draggedElement, dropTarget.nextSibling);
+            } else {
+                container.insertBefore(draggedElement, dropTarget);
+            }
+        }
+        
+        document.querySelector('.dragging')?.classList.remove('dragging');
+    }
+
+    // Add some additional styles for drag and drop
+    const additionalStyles = `
+        .deck-card.dragging {
+            opacity: 0.5;
+            cursor: move;
+        }
+        
+        .visualization-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--surface-color);
+            border-radius: 4px;
+        }
+        
+        .chart-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        
+        .visualization-icon {
+            font-size: 1.5rem;
+        }
+    `;
+
+    // Add styles to document
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = additionalStyles;
+    document.head.appendChild(styleSheet);
+
+    // Initialize deck when tab is shown
+    const deckTab = document.querySelector('.tab:last-child') || document.querySelector('[data-tab="deck"]');
+    if (deckTab) {
+        deckTab.addEventListener('click', () => {
+            console.log('Deck tab clicked'); // Debug log
+            createDeckSlides();
+        });
+    }
+
+    // Add CSS for button states
+    const buttonStyles = `
+        button#analyze-btn.processing {
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        button#analyze-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+    `;
+
+    // Add the styles to the document
+    const btnStyleSheet = document.createElement('style');
+    btnStyleSheet.textContent = buttonStyles;
+    document.head.appendChild(btnStyleSheet);
+
+    // Tab switching functionality
+    function setupTabs() {
+        const tabs = document.querySelectorAll('.tab');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and panes
+                tabs.forEach(t => t.classList.remove('active'));
+                tabPanes.forEach(p => p.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                tab.classList.add('active');
+                
+                // Show corresponding content
+                const targetId = tab.getAttribute('data-tab') + '-content';
+                const targetPane = document.getElementById(targetId);
+                if (targetPane) {
+                    targetPane.classList.add('active');
+                    
+                    // If it's the deck tab, create the slides
+                    if (targetId === 'deck-content') {
+                        createDeckSlides();
+                    }
+                }
+            });
+        });
+    }
+
+    // Initialize when document is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        setupTabs();
     });
 });
