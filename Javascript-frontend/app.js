@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const analysisContent = document.getElementById('analysis-content');
 
     // Analysis steps configuration
-    const steps = ['strategy', 'competitors', 'revenue', 'cost', 'ROI'];
+    const steps = ['strategy', 'competitors', 'revenue', 'cost', 'roi'];
     const optionalSteps = ['justification', 'deck'];
     let currentStep = 0;
     let completedSteps = [];
@@ -245,19 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await processPromise;
             console.log(`Raw ${step} data:`, data);
-
-            const formatPromise = fetch(`http://localhost:5000/format/${step}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: data.result }),
-            }).then(response => {
-                if (!response.ok) throw new Error(`Formatting failed: ${response.statusText}`);
-                return response.json();
-            });
-
-            const formattedData = await formatPromise;
-            console.log(`Formatted ${step} data:`, formattedData);
-            return formattedData;
+            return data;
         } catch (error) {
             console.error(`Error processing step ${step}:`, error);
             throw error;

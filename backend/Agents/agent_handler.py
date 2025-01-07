@@ -1,39 +1,48 @@
 from openai import OpenAI
-from .agents.format_handler import FormatHandler
+from dotenv import load_dotenv
+import os
+from .agents.strategy_analysis import StrategyAnalysis
+from .agents.competitor_analysis import CompetitorAnalysis
+from .agents.revenue_analysis import RevenueAnalysis
+from .agents.cost_analysis import CostAnalysis
+from .agents.roi_analysis import ROIAnalysis
+from .agents.business_justification import BusinessJustification
+from .agents.investor_deck import InvestorDeck
+
+# Load environment variables
+load_dotenv()
 
 class AgentHandler:
     def __init__(self):
-        self.client = OpenAI()
-        # ... existing agent initializations ...
-        self.format_handler = FormatHandler(self.client)
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OpenAI API key not found in environment variables")
+            
+        self.client = OpenAI(api_key=api_key)
+        self.agents = {
+            'strategy': StrategyAnalysis(self.client),
+            'competitors': CompetitorAnalysis(self.client),
+            'revenue': RevenueAnalysis(self.client),
+            'cost': CostAnalysis(self.client),
+            'roi': ROIAnalysis(self.client),
+            'justification': BusinessJustification(self.client),
+            'deck': InvestorDeck(self.client)
+        }
+        self.context = {}
 
-    def process_request(self, endpoint: str, data: dict) -> dict:
-        try:
-            result = None
+    def process_request(self, step, data):
+        if step not in self.agents:
+            return {"error": f"Unknown step: {step}"}
             
-            # Get the raw result from the appropriate agent
-            if endpoint == "strategy":
-                raw_result = self.strategy_agent.analyze(data["context"])
-                result = self.format_handler.format_analysis(raw_result)
-            elif endpoint == "revenue":
-                raw_result = self.revenue_agent.analyze(data["context"], data["strategy"])
-                result = self.format_handler.format_analysis(raw_result)
-            elif endpoint == "cost":
-                raw_result = self.cost_agent.analyze(data["context"], data["strategy"], data["revenue"])
-                result = self.format_handler.format_analysis(raw_result)
-            elif endpoint == "roi":
-                raw_result = self.roi_agent.analyze(data["context"], data["strategy"], 
-                                              data["revenue"], data["cost"])
-                result = self.format_handler.format_analysis(raw_result)
-            elif endpoint == "justification":
-                result = self.justification_agent.create_justification(data)  # Keep as is - already formatted
-            elif endpoint == "deck":
-                result = self.deck_agent.create_deck(data)  # Keep as is - different format
+        # Update context with input data if it contains custom_context
+        if 'custom_context' in data:
+            self.context['custom_context'] = data['custom_context']
             
-            if result is None:
-                raise ValueError(f"Invalid endpoint: {endpoint}")
-
-            return {"result": result}
-            
-        except Exception as e:
-            raise Exception(f"Error processing {endpoint} request: {str(e)}") 
+        # Get response from the agent
+        agent = self.agents[step]
+        result = agent.process(self.context)
+        
+        # Store the result in context for next agents
+        self.context[step] = result
+        
+        return result 

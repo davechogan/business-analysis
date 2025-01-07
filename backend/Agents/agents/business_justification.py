@@ -1,74 +1,73 @@
 from openai import OpenAI
 
 class BusinessJustification:
-    def __init__(self, client: OpenAI):
+    def __init__(self, client):
         self.client = client
+        self.system_role = """You are a business case and investment justification expert.
+        
+        Focus your analysis on:
+        1. Business opportunity
+        2. Value proposition
+        3. Financial justification
+        4. Risk assessment
+        5. Implementation roadmap
+        6. Key recommendations
+        
+        Create a compelling business case that ties together all previous analyses."""
 
-    def analyze(self, business_context: str, strategy: str, competitors: str, revenue: str, costs: str, roi: str) -> str:
-        previous_analysis = f"""
-        Based on previous analyses:
-
-        Strategic Analysis:
-        {strategy}
-
+    def process(self, context):
+        custom_context = context.get('custom_context', '')
+        strategy_analysis = context.get('strategy', '')
+        competitor_analysis = context.get('competitors', '')
+        revenue_analysis = context.get('revenue', '')
+        cost_analysis = context.get('cost', '')
+        roi_analysis = context.get('roi', '')
+        
+        prompt = f"""Based on all previous analyses, create a comprehensive business case that includes:
+        
+        1. Executive Summary
+        - Business opportunity
+        - Value proposition
+        - Key findings
+        
+        2. Investment Justification
+        - Strategic alignment
+        - Market opportunity
+        - Financial benefits
+        
+        3. Implementation Plan
+        - Key milestones
+        - Resource requirements
+        - Risk mitigation
+        
+        Context:
+        {custom_context}
+        
+        Strategy Analysis:
+        {strategy_analysis}
+        
         Competitor Analysis:
-        {competitors}
-
+        {competitor_analysis}
+        
         Revenue Analysis:
-        {revenue}
-
+        {revenue_analysis}
+        
         Cost Analysis:
-        {costs}
-
+        {cost_analysis}
+        
         ROI Analysis:
-        {roi}
-        """
+        {roi_analysis}
+        
+        Format your response with clear sections, compelling arguments, and specific supporting data."""
 
-        prompt = f"""
-        {previous_analysis}
-
-        Provide a comprehensive business justification for this opportunity:
-
-        ### Executive Summary
-        • Business opportunity overview
-        • Market potential
-        • Competitive advantage
-        • Financial highlights
-
-        ### Strategic Fit
-        • Market alignment
-        • Growth potential
-        • Competitive positioning
-        • Core capabilities
-
-        ### Financial Viability
-        • Revenue potential
-        • Cost structure
-        • ROI analysis
-        • Risk assessment
-
-        ### Implementation Plan
-        • Key milestones
-        • Resource requirements
-        • Timeline
-        • Success metrics
-
-        ### Recommendations
-        • Go/No-go assessment
-        • Key considerations
-        • Critical success factors
-        • Next steps
-
-        Business Context:
-        {business_context}
-        """
+        messages = [
+            {"role": "system", "content": self.system_role},
+            {"role": "user", "content": prompt}
+        ]
 
         response = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a senior business advisor specializing in business case development and strategic planning. Format your response with ### section headers."},
-                {"role": "user", "content": prompt}
-            ],
+            messages=messages,
             temperature=0.7
         )
 
