@@ -32,28 +32,22 @@ def submit_context():
     data = request.get_json()
     custom_context = data.get('custom_context', '')
     stored_context['custom_context'] = custom_context
-    print(f"Received context: {custom_context}")
+    print(f"\napp.py: Stored initial context: {custom_context}")
     return jsonify({'success': True})
 
 @app.route('/process/<step>', methods=['POST'])
 def process_step(step):
     try:
-        print(f"\napp.py: Received request for step: {step}")
         data = request.get_json() or {}
         data['custom_context'] = stored_context.get('custom_context', '')
-        print(f"app.py: Processing with data: {data}")
+        print(f"\napp.py: Processing {step}")
+        print(f"app.py: Sending data to agent_handler: {data}")
         
-        print("app.py: Calling agent_handler.process_request...")
         result = agent_handler.process_request(step, data)
-        print(f"app.py: Received result from agent_handler: {str(result)[:200]}...")  # First 200 chars
+        print(f"app.py: Received result from agent_handler for {step}")
+        print(f"app.py: Result status: {result.get('status', 'unknown')}")
         
-        print("app.py: Converting result to JSON...")
-        json_result = jsonify(result)
-        print(f"app.py: JSON result: {str(json_result.get_data())[:200]}...")  # First 200 chars
-        
-        print("app.py: Sending response to frontend")
-        return json_result
-        
+        return jsonify(result)
     except Exception as e:
         print(f"app.py: Error processing {step}: {e}")
         return jsonify({"error": str(e)}), 500

@@ -16,39 +16,40 @@ class StrategyAnalysis:
         Include specific metrics and data points where relevant."""
 
     def process(self, context):
-        custom_context = context.get('custom_context', '')
+        print(f"\nstrategy_analysis.py: Starting analysis")
+        print(f"strategy_analysis.py: Received context keys: {list(context.keys())}")
+        print(f"strategy_analysis.py: Custom context: {context.get('custom_context', 'None')}")
         
-        prompt = f"""Based on this context, provide a comprehensive strategic analysis that includes:
+        # Create a more specific prompt with the user's input
+        user_input = context.get('custom_context', '')
+        if not user_input:
+            print("strategy_analysis.py: WARNING - No custom context found!")
+            return "Error: No business concept provided for analysis."
         
-        1. Market Opportunity Assessment
-        - Market size and growth rates
-        - Key market segments
-        - Industry trends
-        
-        2. Competitive Position
-        - Market dynamics
-        - Entry barriers
-        - Key success factors
-        
-        3. Strategic Recommendations
-        - Growth opportunities
-        - Strategic priorities
-        - Key initiatives
-        
-        Context:
-        {custom_context}
-        
-        Format your response with clear sections, specific metrics, and actionable insights."""
+        prompt = f"""Analyze this specific business concept in detail: {user_input}
 
+        Provide a strategic analysis covering:
+        1. Market size and potential
+        2. Target customer segments
+        3. Competition and market dynamics
+        4. Growth opportunities
+        5. Key success factors
+        6. Strategic recommendations
+
+        Focus specifically on this business concept, not generic analysis."""
+        
         messages = [
             {"role": "system", "content": self.system_role},
             {"role": "user", "content": prompt}
         ]
-
+        
+        print("strategy_analysis.py: Sending to OpenAI with prompt:", prompt)
         response = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.7
         )
-
-        return response.choices[0].message.content 
+        
+        result = response.choices[0].message.content
+        print(f"strategy_analysis.py: Received response, first 200 chars: {result[:200]}...")
+        return result 

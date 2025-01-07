@@ -299,6 +299,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    async function pollForFormattedResult(step) {
+        for (let i = 0; i < 30; i++) {  // Try for 30 seconds
+            const response = await fetch(`http://localhost:5000/get_formatted_result/${step}`);
+            const result = await response.json();
+            
+            if (result.status === "complete") {
+                return result.formatted_result;
+            } else if (result.error) {
+                throw new Error(result.error);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));  // Wait 1 second between polls
+        }
+        throw new Error("Timeout waiting for formatted result");
+    }
+
     // Main analysis handler
     analyzeBtn.addEventListener('click', async function() {
         const context = textarea.value.trim();
@@ -327,22 +343,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentStep = steps.indexOf(step);
                 createProgressBar();
                 
-                if (formatPromise) {
-                    const formattedResult = await formatPromise;
-                    addTab(steps[currentStep - 1], formattedResult);
-                    completedSteps.push(steps[currentStep - 1]);
-                    createProgressBar();
+                try {
+                    const result = await fetch(`http://localhost:5000/process/${step}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    }).then(r => r.json());
+
+                    if (result.status === "processing") {
+                        // Start polling for formatted result
+                        const formattedResult = await pollForFormattedResult(step);
+                        addTab(step, formattedResult);
+                    } else {
+                        addTab(step, result);
+                    }
+                    
+                    completedSteps.push(step);
+                } catch (error) {
+                    console.error('Error:', error);
                 }
-
-                const result = await processStep(step);
-                formatPromise = Promise.resolve(result);
-            }
-
-            if (formatPromise) {
-                const formattedResult = await formatPromise;
-                addTab(steps[steps.length - 1], formattedResult);
-                completedSteps.push(steps[steps.length - 1]);
-                createProgressBar();
             }
 
             // Handle optional steps

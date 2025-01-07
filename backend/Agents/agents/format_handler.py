@@ -5,6 +5,10 @@ class FormatHandler:
         self.client = client or OpenAI()
         
     def format_analysis(self, text: str) -> dict:
+        print(f"\nformat_handler.py: Starting formatting")
+        print(f"format_handler.py: Received text length: {len(text)}")
+        print(f"format_handler.py: First 200 chars: {text[:200]}...")
+        
         try:
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo-16k",
@@ -32,10 +36,13 @@ class FormatHandler:
                 temperature=0.1
             )
             
-            return response.choices[0].message.content
+            result = response.choices[0].message.content
+            print(f"format_handler.py: Formatting complete")
+            print(f"format_handler.py: Result first 200 chars: {result[:200]}...")
+            return result
             
         except Exception as e:
-            print(f"Error in format_analysis: {e}")
+            print(f"format_handler.py: Error in formatting: {e}")
             return {
                 "sections": [{
                     "title": "Error in Formatting",
