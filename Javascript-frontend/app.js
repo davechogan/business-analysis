@@ -320,36 +320,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const context = textarea.value.trim();
         if (!context) return;
 
+        // If currently processing, refresh the page to stop
+        if (analyzeBtn.textContent === 'Stop Processing') {
+            location.reload(true);  // true forces reload from server, not cache
+            return;
+        }
+
         try {
-            // Disable button and update UI
-            analyzeBtn.disabled = true;
-            analyzeBtn.classList.add('processing');
-            analyzeBtn.textContent = 'Processing...';
-
-            resultsSection.style.display = 'block';
-            createProgressBar();
+            // Update button state
+            analyzeBtn.textContent = 'Stop Processing';
+            
+            // Reset UI
+            completedSteps = [];
+            currentStep = 0;
             analysisContent.innerHTML = '';
+            resultsSection.style.display = 'block';
 
+            // Submit context
             const contextResponse = await fetch('http://localhost:5000/submit_context', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ custom_context: context }),
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ custom_context: context })
             });
 
             if (!contextResponse.ok) throw new Error('Failed to submit context');
 
-            let formatPromise = null;
+            // Process each step
             for (const step of steps) {
                 currentStep = steps.indexOf(step);
                 createProgressBar();
                 
                 try {
-                    const result = await fetch(`http://localhost:5000/process/${step}`, {
+                    const response = await fetch(`http://localhost:5000/process/${step}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({})
-                    }).then(r => r.json());
-
+                    });
+                    const result = await response.json();
+                    
                     if (result.status === "processing") {
                         // Start polling for formatted result
                         const formattedResult = await pollForFormattedResult(step);
@@ -359,42 +369,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     completedSteps.push(step);
+                    
                 } catch (error) {
                     console.error('Error:', error);
                 }
             }
 
-            // Handle optional steps
-            for (const optionalStep of optionalSteps) {
-                if (!completedSteps.includes(optionalStep)) {
-                    const shouldProceed = await createOptionalStepPrompt(optionalStep);
-                    
-                    if (shouldProceed) {
-                        currentStep = steps.length + optionalSteps.indexOf(optionalStep);
-                        if (!steps.includes(optionalStep)) steps.push(optionalStep);
-                        createProgressBar();
-                        
-                        const result = await processStep(optionalStep);
-                        if (!completedSteps.includes(optionalStep)) completedSteps.push(optionalStep);
-                        addTab(optionalStep, result);
-                        createProgressBar();
-                    }
-                }
-            }
+            // Set to Analysis Complete when done
+            analyzeBtn.textContent = 'Analysis Complete';
 
         } catch (error) {
             console.error('Analysis error:', error);
             analysisContent.innerHTML = `<div class="error">Error during analysis: ${error.message}</div>`;
-            // Only re-enable button on error
-            analyzeBtn.disabled = false;
-            analyzeBtn.classList.remove('processing');
-            analyzeBtn.textContent = 'Analyze';
-        } finally {
-            if (!analysisContent.querySelector('.error')) {
-                // Keep button disabled on success
-                analyzeBtn.disabled = true;
-                analyzeBtn.textContent = 'Analysis Complete';
-            }
+            analyzeBtn.textContent = 'Analyze';  // Reset on error
         }
     });
 
