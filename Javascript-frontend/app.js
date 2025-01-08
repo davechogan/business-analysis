@@ -70,14 +70,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create tab content
         const contentDiv = document.createElement('div');
         contentDiv.className = 'tab-pane';
+        contentDiv.style.display = 'none';  // Hide by default
         
         let htmlContent = `
             <div class="analysis-card">
                 <div class="card-header">
                     <h2>${step.charAt(0).toUpperCase() + step.slice(1)} Analysis</h2>
-                    <button class="download-btn" onclick="downloadTabContent('${step}', this.parentElement.parentElement)">
-                        Download
-                    </button>
+                    <div class="download-dropdown">
+                        <button class="download-btn" onclick="toggleDownloadMenu(this)">
+                            Download <span style="font-size: 10px; margin-left: 4px;">▼</span>
+                        </button>
+                        <div class="download-menu">
+                            <button onclick="downloadTabContent('${step}', this.closest('.analysis-card'), 'text')">
+                                Download as Text
+                            </button>
+                            <button onclick="downloadTabContent('${step}', this.closest('.analysis-card'), 'html')">
+                                Download as HTML
+                            </button>
+                            <button onclick="downloadTabContent('${step}', this.closest('.analysis-card'), 'pdf')">
+                                Download as PDF
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="markdown-content">
         `;
@@ -136,11 +150,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Store the formatted content for downloading
         contentDiv.dataset.content = JSON.stringify(formattedContent);
 
-        // Show current tab
-        document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        contentDiv.style.display = 'block';
-        tab.classList.add('active');
+        // Only show this tab if it's the first one
+        if (document.querySelectorAll('.tab').length === 1) {
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            contentDiv.style.display = 'block';
+            tab.classList.add('active');
+        }
 
         // Tab click handler
         tab.addEventListener('click', () => {
@@ -394,12 +410,68 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Make downloadTabContent globally accessible
-    window.downloadTabContent = function(step, container) {
+    window.toggleDownloadMenu = function(button) {
+        const menu = button.nextElementSibling;
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        
+        // Close menu when clicking outside
+        const closeMenu = (e) => {
+            if (!button.contains(e.target) && !menu.contains(e.target)) {
+                menu.style.display = 'none';
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        document.addEventListener('click', closeMenu);
+    };
+
+    window.downloadTabContent = function(step, container, format) {
         const content = container.querySelector('.markdown-content')?.innerHTML;
         if (!content) return;
 
-        // Create a full HTML document
-        const htmlContent = `
+        if (format === 'text') {
+            // Create temporary container to extract text
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = content;
+            
+            // Extract text content, preserving some structure
+            let textContent = '';
+            
+            // Add title
+            textContent += `${step.toUpperCase()} ANALYSIS\n\n`;
+            
+            // Process each section
+            tempContainer.querySelectorAll('.analysis-section').forEach(section => {
+                const title = section.querySelector('h3')?.textContent;
+                if (title) {
+                    textContent += `${title.toUpperCase()}\n`;
+                    textContent += '='.repeat(title.length) + '\n\n';
+                }
+                
+                // Get content, removing extra whitespace but preserving paragraphs
+                const sectionContent = section.textContent
+                    .replace(title || '', '') // Remove title from content
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line)
+                    .join('\n');
+                
+                textContent += sectionContent + '\n\n';
+            });
+
+            // Download text file
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${step}_analysis.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+        } else if (format === 'html') {
+            // Create HTML document
+            const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -416,16 +488,39 @@ document.addEventListener('DOMContentLoaded', function() {
 </body>
 </html>`;
 
-        // Create and trigger download
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${step}_analysis.html`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+            // Download HTML
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${step}_analysis.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+        } else if (format === 'pdf') {
+            // Create temporary container for PDF conversion
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = content;
+            tempContainer.style.padding = '20px';
+            document.body.appendChild(tempContainer);
+
+            // Generate PDF using html2pdf
+            html2pdf()
+                .from(tempContainer)
+                .set({
+                    margin: [10, 10],
+                    filename: `${step}_analysis.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                })
+                .save()
+                .then(() => {
+                    document.body.removeChild(tempContainer);
+                });
+        }
     };
 
     // Initialize
