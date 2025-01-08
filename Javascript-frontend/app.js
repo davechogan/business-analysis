@@ -425,13 +425,13 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.downloadTabContent = function(step, container, format) {
-        const content = container.querySelector('.markdown-content')?.innerHTML;
+        const content = container.querySelector('.markdown-content');
         if (!content) return;
 
         if (format === 'text') {
             // Create temporary container to extract text
             const tempContainer = document.createElement('div');
-            tempContainer.innerHTML = content;
+            tempContainer.innerHTML = content.innerHTML;
             
             // Extract text content, preserving some structure
             let textContent = '';
@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </style>
 </head>
 <body>
-    ${content}
+    ${content.innerHTML}
 </body>
 </html>`;
 
@@ -500,25 +500,99 @@ document.addEventListener('DOMContentLoaded', function() {
             URL.revokeObjectURL(url);
 
         } else if (format === 'pdf') {
-            // Create temporary container for PDF conversion
-            const tempContainer = document.createElement('div');
-            tempContainer.innerHTML = content;
-            tempContainer.style.padding = '20px';
-            document.body.appendChild(tempContainer);
+            // Build document definition
+            let docDefinition = {
+                content: [],
+                styles: {
+                    header: {
+                        fontSize: 18,
+                        bold: true,
+                        margin: [0, 0, 0, 10]
+                    },
+                    sectionHeader: {
+                        fontSize: 14,
+                        bold: true,
+                        margin: [0, 15, 0, 5]
+                    },
+                    paragraph: {
+                        fontSize: 12,
+                        margin: [0, 5, 0, 10]
+                    }
+                }
+            };
 
-            // Generate PDF using html2pdf
-            html2pdf()
-                .from(tempContainer)
-                .set({
-                    margin: [10, 10],
-                    filename: `${step}_analysis.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                })
-                .save()
+            // Add title
+            docDefinition.content.push({
+                text: `${step.charAt(0).toUpperCase() + step.slice(1)} Analysis`,
+                style: 'header'
+            });
+
+            // Process each section
+            const processSection = async (section) => {
+                // Add section title
+                const title = section.querySelector('h3')?.textContent;
+                if (title) {
+                    docDefinition.content.push({
+                        text: title,
+                        style: 'sectionHeader'
+                    });
+                }
+
+                // Check for visualizations (SVG or Canvas elements)
+                const visualizations = section.querySelectorAll('svg, canvas');
+                for (const viz of visualizations) {
+                    try {
+                        let imgData;
+                        if (viz.tagName === 'SVG') {
+                            // Convert SVG to canvas
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const svgData = new XMLSerializer().serializeToString(viz);
+                            const img = new Image();
+                            img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+                            await new Promise(resolve => img.onload = resolve);
+                            canvas.width = viz.clientWidth;
+                            canvas.height = viz.clientHeight;
+                            ctx.drawImage(img, 0, 0);
+                            imgData = canvas.toDataURL('image/png');
+                        } else {
+                            // Canvas element
+                            imgData = viz.toDataURL('image/png');
+                        }
+                        
+                        docDefinition.content.push({
+                            image: imgData,
+                            width: 500, // Adjust width as needed
+                            margin: [0, 10, 0, 10]
+                        });
+                    } catch (error) {
+                        console.error('Error converting visualization:', error);
+                    }
+                }
+
+                // Get the text content and split by commas
+                const text = section.textContent.replace(title || '', '').trim();
+                const paragraphs = text.split('.,').map(p => p.trim());
+                
+                // Add each paragraph
+                paragraphs.forEach(paragraph => {
+                    if (paragraph) {
+                        docDefinition.content.push({
+                            text: paragraph + '.',
+                            style: 'paragraph'
+                        });
+                    }
+                });
+            };
+
+            // Process all sections
+            Promise.all(Array.from(content.querySelectorAll('.analysis-section')).map(processSection))
                 .then(() => {
-                    document.body.removeChild(tempContainer);
+                    // Generate and download PDF
+                    pdfMake.createPdf(docDefinition).download(`${step}_analysis.pdf`);
+                })
+                .catch(error => {
+                    console.error('Error generating PDF:', error);
                 });
         }
     };
