@@ -73,7 +73,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let htmlContent = `
             <div class="analysis-card">
-                <h2>${step.charAt(0).toUpperCase() + step.slice(1)} Analysis</h2>
+                <div class="card-header">
+                    <h2>${step.charAt(0).toUpperCase() + step.slice(1)} Analysis</h2>
+                    <button class="download-btn" onclick="downloadTabContent('${step}', this.parentElement.parentElement)">
+                        Download
+                    </button>
+                </div>
                 <div class="markdown-content">
         `;
 
@@ -127,6 +132,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         contentDiv.innerHTML = htmlContent;
         tabContent.appendChild(contentDiv);
+
+        // Store the formatted content for downloading
+        contentDiv.dataset.content = JSON.stringify(formattedContent);
 
         // Show current tab
         document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
@@ -384,6 +392,41 @@ document.addEventListener('DOMContentLoaded', function() {
             analyzeBtn.textContent = 'Analyze';  // Reset on error
         }
     });
+
+    // Make downloadTabContent globally accessible
+    window.downloadTabContent = function(step, container) {
+        const content = container.querySelector('.markdown-content')?.innerHTML;
+        if (!content) return;
+
+        // Create a full HTML document
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${step.charAt(0).toUpperCase() + step.slice(1)} Analysis</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+        h2 { color: #333; }
+        .analysis-section { margin-bottom: 20px; }
+        ul { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    ${content}
+</body>
+</html>`;
+
+        // Create and trigger download
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${step}_analysis.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     // Initialize
     initializeTheme();

@@ -1,0 +1,9 @@
+Notes
+
+I want to add more agents
+Look at running them in parallel and returning the data to the tab, as it completes and not force the order. Or have a tab order that as they complete the new tab is put in the correct place.
+Interactivity - Ask questions about the results?
+Add download capability
+Add poweerpoint integration.
+Try and use an ai system like Gamma to make the slides look really good.
+Options for which analysis to run. Add more visualization capabilities. Part of the formatter or a separate step all together.
