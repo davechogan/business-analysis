@@ -58,6 +58,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     return 'Cost Analysis';
                 case 'roi':
                     return 'ROI Analysis';
+                case 'justification':
+                    return 'Business Justification';
+                case 'deck':
+                    return 'Investor Deck';
                 default:
                     return `${step.charAt(0).toUpperCase() + step.slice(1)} Analysis`;
             }
@@ -91,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create tab content
         const contentDiv = document.createElement('div');
         contentDiv.className = 'tab-pane';
+        contentDiv.setAttribute('data-step', step);
         contentDiv.style.display = 'none';  // Hide by default
         
         let htmlContent = `
@@ -379,6 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
             analyzeBtn.textContent = 'Analysis Complete';
             currentStep = steps.length;
             createProgressBar();
+            addDownloadAllButton();
 
         } catch (error) {
             console.error('Analysis error:', error);
@@ -574,6 +580,170 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         }
     };
+
+    // Add this function to handle downloading all tabs
+    async function downloadAllTabs() {
+        const zip = new JSZip();
+        const tabs = document.querySelectorAll('.tab-pane');
+        
+        // Process each tab
+        for (const tab of tabs) {
+            const stepName = tab.getAttribute('data-step');
+            if (!stepName) continue;
+
+            // Get content for each format
+            try {
+                // Add HTML version
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>${formatStepName(stepName, true)}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+                            h2 { color: #333; }
+                            .analysis-section { margin-bottom: 20px; }
+                            ul { margin-top: 10px; }
+                        </style>
+                    </head>
+                    <body>
+                        ${tab.querySelector('.markdown-content').innerHTML}
+                    </body>
+                    </html>`;
+                zip.file(`${stepName}/${stepName}_analysis.html`, htmlContent);
+
+                // Add text version
+                const textContent = extractTextContent(tab);
+                zip.file(`${stepName}/${stepName}_analysis.txt`, textContent);
+
+                // Add PDF version
+                const pdfDoc = await generatePDF(tab, stepName);
+                const pdfBlob = await pdfDoc.getBlob();
+                zip.file(`${stepName}/${stepName}_analysis.pdf`, pdfBlob);
+            } catch (error) {
+                console.error(`Error processing ${stepName}:`, error);
+            }
+        }
+
+        // Generate and download the zip file
+        try {
+            const content = await zip.generateAsync({type: 'blob'});
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'business_analysis.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error creating zip file:', error);
+        }
+    }
+
+    // Helper function to extract text content
+    function extractTextContent(container) {
+        const content = container.querySelector('.markdown-content');
+        if (!content) return '';
+        
+        let textContent = '';
+        const stepName = container.getAttribute('data-step');
+        
+        // Add title
+        textContent += `${formatStepName(stepName, true).toUpperCase()}\n\n`;
+        
+        // Process each section
+        content.querySelectorAll('.analysis-section').forEach(section => {
+            const title = section.querySelector('h3')?.textContent;
+            if (title) {
+                textContent += `${title.toUpperCase()}\n`;
+                textContent += '='.repeat(title.length) + '\n\n';
+            }
+            
+            const sectionContent = section.textContent
+                .replace(title || '', '')
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line)
+                .join('\n');
+            
+            textContent += sectionContent + '\n\n';
+        });
+        
+        return textContent;
+    }
+
+    // Helper function to generate PDF
+    async function generatePDF(container, step) {
+        const content = container.querySelector('.markdown-content');
+        if (!content) return null;
+
+        let docDefinition = {
+            content: [],
+            styles: {
+                header: {
+                    fontSize: 18,
+                    bold: true,
+                    margin: [0, 0, 0, 10]
+                },
+                sectionHeader: {
+                    fontSize: 14,
+                    bold: true,
+                    margin: [0, 15, 0, 5]
+                },
+                paragraph: {
+                    fontSize: 12,
+                    margin: [0, 5, 0, 10]
+                }
+            }
+        };
+
+        // Add title
+        docDefinition.content.push({
+            text: formatStepName(step, true),
+            style: 'header'
+        });
+
+        // Process each section
+        content.querySelectorAll('.analysis-section').forEach(section => {
+            const title = section.querySelector('h3')?.textContent;
+            if (title) {
+                docDefinition.content.push({
+                    text: title,
+                    style: 'sectionHeader'
+                });
+            }
+
+            const text = section.textContent.replace(title || '', '').trim();
+            const paragraphs = text.split('.,').map(p => p.trim());
+            
+            paragraphs.forEach(paragraph => {
+                if (paragraph) {
+                    docDefinition.content.push({
+                        text: paragraph + '.',
+                        style: 'paragraph'
+                    });
+                }
+            });
+        });
+
+        return pdfMake.createPdf(docDefinition);
+    }
+
+    // Add download all button to UI after analysis completes
+    function addDownloadAllButton() {
+        const existingButton = document.querySelector('.download-all-btn');
+        if (existingButton) return;
+
+        const button = document.createElement('button');
+        button.className = 'download-all-btn';
+        button.textContent = 'Download All Analyses';
+        button.onclick = downloadAllTabs;
+        
+        // Add to UI in appropriate location
+        const resultsSection = document.getElementById('results-section');
+        resultsSection.insertBefore(button, resultsSection.firstChild);
+    }
 
     // Initialize
     initializeTheme();

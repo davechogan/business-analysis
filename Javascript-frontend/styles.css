@@ -522,3 +522,20 @@ button.processing {
     align-items: center;
     margin-bottom: 1rem;
 } 
+
+.download-all-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    background-color: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+.download-all-btn:hover {
+    background-color: var(--brand-primary-dark);
+} 
