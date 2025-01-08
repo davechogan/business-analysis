@@ -45,6 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
         return { tabsList, tabContent };
     }
 
+    // Helper function to format step names
+    function formatStepName(step) {
+        return step === 'roi' ? 'ROI' : step.charAt(0).toUpperCase() + step.slice(1);
+    }
+
     // Add new tab
     function addTab(step, content) {
         const tabsContainer = document.querySelector('.tabs-container') || createTabsContainer().tabsList;
@@ -54,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create tab button
         const tab = document.createElement('button');
         tab.className = 'tab';
-        tab.textContent = step === 'ROI' ? 'ROI' : step.charAt(0).toUpperCase() + step.slice(1);
+        tab.textContent = formatStepName(step);
         tabsList.appendChild(tab);
 
         // Parse content
@@ -227,13 +232,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     .attr('repeatCount', 'indefinite');
             }
 
-            const label = step === 'ROI' ? 'ROI' : step.charAt(0).toUpperCase() + step.slice(1);
             svg.append('text')
                 .attr('x', x)
                 .attr('y', height / 2 + 25)
                 .attr('text-anchor', 'middle')
                 .attr('class', 'step-label')
-                .text(label)
+                .text(formatStepName(step))
                 .style('font-size', '12px')
                 .style('font-weight', currentStep === index ? 'bold' : 'normal')
                 .style('fill', currentStep === index ? 
