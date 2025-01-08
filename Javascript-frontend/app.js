@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr('y1', height / 2)
             .attr('x2', width - padding)
             .attr('y2', height / 2)
-            .style('stroke', '#ccc')
+            .style('stroke', getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim())
             .style('stroke-width', 2);
 
         // Step circles and labels
@@ -205,15 +205,16 @@ document.addEventListener('DOMContentLoaded', function() {
             g.append('circle')
                 .attr('r', 10)
                 .style('fill', getStepColor(step))
-                .style('stroke', '#666')
+                .style('stroke', getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim())
                 .style('stroke-width', 2);
 
-            if (currentStep === index && !completedSteps.includes(step)) {
+            if (currentStep === index && !completedSteps.includes(step) && 
+                currentStep < steps.length) {
                 const loadingCircle = g.append('circle')
                     .attr('class', 'loading-indicator')
                     .attr('r', 15)
                     .style('fill', 'none')
-                    .style('stroke', '#2196F3')
+                    .style('stroke', getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim())
                     .style('stroke-width', 2)
                     .style('stroke-dasharray', '10 5');
 
@@ -235,7 +236,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 .text(label)
                 .style('font-size', '12px')
                 .style('font-weight', currentStep === index ? 'bold' : 'normal')
-                .style('fill', currentStep === index ? '#2196F3' : '#666');
+                .style('fill', currentStep === index ? 
+                    getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim() : 
+                    getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim());
         });
 
         window.addEventListener('resize', debounce(() => createProgressBar(), 250));
@@ -250,12 +253,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getStepColor(step) {
-        if (completedSteps.includes(step)) return '#4CAF50';
+        if (completedSteps.includes(step)) return getComputedStyle(document.documentElement).getPropertyValue('--brand-success').trim();
         if (steps.indexOf(step) === currentStep || 
             (optionalSteps.includes(step) && completedSteps.length === steps.length + optionalSteps.indexOf(step))) {
-            return '#2196F3';
+            return getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim();
         }
-        return '#fff';
+        return getComputedStyle(document.documentElement).getPropertyValue('--background-color').trim() || '#fff';
     }
 
     // Process analysis step
@@ -346,7 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // If currently processing, refresh the page to stop
         if (analyzeBtn.textContent === 'Stop Processing') {
-            location.reload(true);  // true forces reload from server, not cache
+            location.reload(true);
             return;
         }
 
@@ -393,6 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     completedSteps.push(step);
+                    createProgressBar();  // Update progress bar after completing each step
                     
                 } catch (error) {
                     console.error('Error:', error);
@@ -401,6 +405,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Set to Analysis Complete when done
             analyzeBtn.textContent = 'Analysis Complete';
+            currentStep = steps.length;  // Set current step to end
+            createProgressBar();  // Final update of progress bar
 
         } catch (error) {
             console.error('Analysis error:', error);
