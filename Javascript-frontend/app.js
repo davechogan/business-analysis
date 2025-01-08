@@ -6,9 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressBar = document.getElementById('progress-bar');
     const analysisContent = document.getElementById('analysis-content');
 
-    // Analysis steps configuration
-    const steps = ['strategy', 'competitors', 'revenue', 'cost', 'roi'];
-    const optionalSteps = ['justification', 'deck'];
+    // Analysis steps configuration - now all steps are included in the main flow
+    const steps = ['strategy', 'competitors', 'revenue', 'cost', 'roi', 'justification', 'deck'];
     let currentStep = 0;
     let completedSteps = [];
 
@@ -198,8 +197,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         progressBar.innerHTML = '';
 
-        const uniqueSteps = [...new Set([...steps, ...completedSteps.filter(step => optionalSteps.includes(step))])];
-        const stepWidth = (width - (2 * padding)) / (uniqueSteps.length - 1 || 1);
+        // Simplified step handling - just use steps array
+        const stepWidth = (width - (2 * padding)) / (steps.length - 1 || 1);
 
         const svg = d3.select(progressBar)
             .append('svg')
@@ -218,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .style('stroke-width', 2);
 
         // Step circles and labels
-        uniqueSteps.forEach((step, index) => {
+        steps.forEach((step, index) => {
             const x = padding + (stepWidth * index);
             const g = svg.append('g')
                 .attr('class', 'step-group')
@@ -274,12 +273,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getStepColor(step) {
-        if (completedSteps.includes(step)) return getComputedStyle(document.documentElement).getPropertyValue('--brand-success').trim();
-        if (steps.indexOf(step) === currentStep || 
-            (optionalSteps.includes(step) && completedSteps.length === steps.length + optionalSteps.indexOf(step))) {
+        if (completedSteps.includes(step)) {
+            return getComputedStyle(document.documentElement).getPropertyValue('--brand-success').trim();
+        }
+        if (steps.indexOf(step) === currentStep) {
             return getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim();
         }
-        return getComputedStyle(document.documentElement).getPropertyValue('--background-color').trim() || '#fff';
+        return getComputedStyle(document.documentElement).getPropertyValue('--background-color').trim();
     }
 
     // Process analysis step
@@ -298,53 +298,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error(`Error processing step ${step}:`, error);
             throw error;
         }
-    }
-
-    // Optional step prompt
-    function createOptionalStepPrompt(step) {
-        return new Promise((resolve) => {
-            const promptDiv = document.createElement('div');
-            promptDiv.className = 'optional-step-prompt';
-            
-            // Different prompt text based on step type
-            const promptContent = step === 'deck' ? {
-                title: 'Create Investor Deck?',
-                description: 'Would you like to generate an investor pitch deck based on the analysis?'
-            } : {
-                title: 'Create Business Justification Plan?',
-                description: 'Would you like to generate a detailed business justification plan based on the analysis?'
-            };
-
-            promptDiv.innerHTML = `
-                <div class="prompt-card">
-                    <h3>${promptContent.title}</h3>
-                    <p>${promptContent.description}</p>
-                    <div class="prompt-buttons">
-                        <button class="accept-btn">Yes, generate it</button>
-                        <button class="reject-btn">No, skip this</button>
-                    </div>
-                </div>
-            `;
-
-            document.body.appendChild(promptDiv);
-
-            const cleanup = () => {
-                promptDiv.style.opacity = '0';
-                setTimeout(() => promptDiv.remove(), 300);
-            };
-
-            promptDiv.querySelector('.accept-btn').addEventListener('click', () => {
-                cleanup();
-                resolve(true);
-            });
-
-            promptDiv.querySelector('.reject-btn').addEventListener('click', () => {
-                cleanup();
-                resolve(false);
-            });
-
-            setTimeout(() => promptDiv.style.opacity = '1', 0);
-        });
     }
 
     async function pollForFormattedResult(step) {
@@ -395,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!contextResponse.ok) throw new Error('Failed to submit context');
 
-            // Process main steps
+            // Process all steps sequentially
             for (const step of steps) {
                 currentStep = steps.indexOf(step);
                 createProgressBar();
@@ -422,36 +375,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // After main steps complete, handle optional steps
-            for (const optionalStep of optionalSteps) {
-                const shouldProcess = await createOptionalStepPrompt(optionalStep);
-                if (shouldProcess) {
-                    try {
-                        const response = await fetch(`http://localhost:5000/process/${optionalStep}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({})
-                        });
-                        const result = await response.json();
-                        
-                        if (result.status === "processing") {
-                            const formattedResult = await pollForFormattedResult(optionalStep);
-                            addTab(optionalStep, formattedResult);
-                        } else {
-                            addTab(optionalStep, result);
-                        }
-                        
-                        completedSteps.push(optionalStep);
-                        createProgressBar();
-                    } catch (error) {
-                        console.error('Error:', error);
-                    }
-                }
-            }
-
             // Set to Analysis Complete when done
             analyzeBtn.textContent = 'Analysis Complete';
-            currentStep = steps.length;  // This might need adjustment based on completed optional steps
+            currentStep = steps.length;
             createProgressBar();
 
         } catch (error) {
