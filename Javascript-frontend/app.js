@@ -46,7 +46,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Helper function to format step names
-    function formatStepName(step) {
+    function formatStepName(step, isTitle = false) {
+        if (isTitle) {
+            switch(step) {
+                case 'strategy':
+                    return 'Strategic Analysis';
+                case 'competitors':
+                    return 'Competitor Analysis';
+                case 'revenue':
+                    return 'Revenue Analysis';
+                case 'cost':
+                    return 'Cost Analysis';
+                case 'roi':
+                    return 'ROI Analysis';
+                default:
+                    return `${step.charAt(0).toUpperCase() + step.slice(1)} Analysis`;
+            }
+        }
+        // Regular tab name formatting (without 'Analysis')
         return step === 'roi' ? 'ROI' : step.charAt(0).toUpperCase() + step.slice(1);
     }
 
@@ -80,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let htmlContent = `
             <div class="analysis-card">
                 <div class="card-header">
-                    <h2>${step.charAt(0).toUpperCase() + step.slice(1)} Analysis</h2>
+                    <h2>${formatStepName(step, true)}</h2>
                     <div class="download-dropdown">
                         <button class="download-btn" onclick="toggleDownloadMenu(this)">
                             Download <span style="font-size: 10px; margin-left: 4px;">▼</span>
@@ -378,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!contextResponse.ok) throw new Error('Failed to submit context');
 
-            // Process each step
+            // Process main steps
             for (const step of steps) {
                 currentStep = steps.indexOf(step);
                 createProgressBar();
@@ -392,7 +409,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const result = await response.json();
                     
                     if (result.status === "processing") {
-                        // Start polling for formatted result
                         const formattedResult = await pollForFormattedResult(step);
                         addTab(step, formattedResult);
                     } else {
@@ -400,22 +416,48 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     completedSteps.push(step);
-                    createProgressBar();  // Update progress bar after completing each step
-                    
+                    createProgressBar();
                 } catch (error) {
                     console.error('Error:', error);
                 }
             }
 
+            // After main steps complete, handle optional steps
+            for (const optionalStep of optionalSteps) {
+                const shouldProcess = await createOptionalStepPrompt(optionalStep);
+                if (shouldProcess) {
+                    try {
+                        const response = await fetch(`http://localhost:5000/process/${optionalStep}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                        });
+                        const result = await response.json();
+                        
+                        if (result.status === "processing") {
+                            const formattedResult = await pollForFormattedResult(optionalStep);
+                            addTab(optionalStep, formattedResult);
+                        } else {
+                            addTab(optionalStep, result);
+                        }
+                        
+                        completedSteps.push(optionalStep);
+                        createProgressBar();
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                }
+            }
+
             // Set to Analysis Complete when done
             analyzeBtn.textContent = 'Analysis Complete';
-            currentStep = steps.length;  // Set current step to end
-            createProgressBar();  // Final update of progress bar
+            currentStep = steps.length;  // This might need adjustment based on completed optional steps
+            createProgressBar();
 
         } catch (error) {
             console.error('Analysis error:', error);
             analysisContent.innerHTML = `<div class="error">Error during analysis: ${error.message}</div>`;
-            analyzeBtn.textContent = 'Analyze';  // Reset on error
+            analyzeBtn.textContent = 'Analyze';
         }
     });
 
